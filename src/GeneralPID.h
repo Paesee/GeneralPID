@@ -1,6 +1,9 @@
 #ifndef GENERALPID_H
 #define GENERALPID_H
 
+#include <stdlib.h>
+#include <stdbool.h>
+
 /// @brief General PID struct meant to be used for any control loop that controls a DC value
 typedef struct GeneralPID
 {
@@ -33,12 +36,13 @@ typedef struct GeneralPID
   int (*setSamplingTime)(struct GeneralPID *self, float sampling_time);
   float (*getSamplingTime)(struct GeneralPID *self);
   int (*setGains)(struct GeneralPID *self, float kp, float ki, float kd);
-  void (*getGains)(struct GeneralPID *self, float *kp, float *ki, float *kd);
+  int (*getGains)(struct GeneralPID *self, float *kp, float *ki, float *kd);
   int (*setMatlabGains)(struct GeneralPID *self, float K1, float K2, float K3, float K1AW, float K2AW);
-  void (*getMatlabGains)(struct GeneralPID *self, float *K1, float *K2, float *K3, float *K1AW, float *K2AW);
+  int (*getMatlabGains)(struct GeneralPID *self, float *K1, float *K2, float *K3, float *K1_AW, float *K2_AW);
   int (*setLimits)(struct GeneralPID *self, float max, float min);
-  void (*getLimits)(struct GeneralPID *self, float *max, float *min);
+  int (*getLimits)(struct GeneralPID *self, float *max, float *min);
   float (*execute)(struct GeneralPID *self, float measurement);
+  float (*execute2)(struct GeneralPID *self, float measurement);
 } GeneralPID;
 
 /// @brief initialize the PID struct
@@ -85,7 +89,7 @@ int GeneralPID_setGains(GeneralPID *self, float kp, float ki, float kd);
 /// @param kp a pointer to variable that will receive proportional gain
 /// @param ki a pointer to variable that will receive integral gain
 /// @param kd a pointer to variable that will receive derivative gain
-void GeneralPID_getGains(GeneralPID *self, float &kp, float &ki, float &kd);
+int GeneralPID_getGains(GeneralPID *self, float *kp, float *ki, float *kd);
 
 /// @brief set the gains according to matlab function c2d(model_tf, ts, 'tustin'), see examples for further explanation
 /// @param self pointer to the instance of the struct
@@ -104,7 +108,7 @@ int GeneralPID_setMatlabGains(GeneralPID *self, float K1, float K2, float K3, fl
 /// @param K3 a pointer to variable that will receive K3 gain
 /// @param K1AW a pointer to variable that will receive K1AW gain
 /// @param K2AW a pointer to variable that will receive K2AW gain
-void GeneralPID_getMatlabGains(GeneralPID *self, float &K1, float &K2, float &K3, float &K1AW, float &K2AW);
+int GeneralPID_getMatlabGains(GeneralPID *self, float *K1, float *K2, float *K3, float *K1_AW, float *K2_AW);
 
 /// @brief set the maximum and minimum output of the control loop
 /// @param self pointer to the instance of the struct
@@ -117,12 +121,18 @@ int GeneralPID_setLimits(GeneralPID *self, float max, float min);
 /// @param self pointer to the instance of the struct
 /// @param max a pointer to variable that will receive the maximum output
 /// @param min a pointer to variable that will receive the minimum output
-void GeneralPID_getLimits(GeneralPID *self, float &max, float &min);
+int GeneralPID_getLimits(GeneralPID *self, float *max, float *min);
 
 /// @brief execute PID control loop
 /// @param self pointer to the instance of the struct
 /// @param measurement
 /// @return control loop action
 float GeneralPID_execute(GeneralPID *self, float measurement);
+
+/// @brief execute PID control loop
+/// @param self pointer to the instance of the struct
+/// @param measurement
+/// @return control loop action
+float GeneralPID_execute2(GeneralPID *self, float measurement);
 
 #endif
