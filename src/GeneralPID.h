@@ -22,6 +22,11 @@ typedef struct GeneralPID
   // anti-windup PD gains converted according to tustin discretization method
   float K1_AW;
   float K2_AW;
+  // first order low pass filter cutoff frequency
+  float cutoff_frequency;
+  // first order low pass filter gains
+  float K1_lpf;
+  float K2_lpf;
   // define max and min output values
   float max_output;
   float min_output;
@@ -30,6 +35,8 @@ typedef struct GeneralPID
   float second_last_error;
   float last_output;
   float second_last_output;
+  float last_input;
+  float last_filtered_meas;
   // pointers to functions
   int (*setSetpoint)(struct GeneralPID *self, float setpoint);
   float (*getSetpoint)(struct GeneralPID *self);
@@ -39,10 +46,11 @@ typedef struct GeneralPID
   int (*getGains)(struct GeneralPID *self, float *kp, float *ki, float *kd);
   int (*setMatlabGains)(struct GeneralPID *self, float K1, float K2, float K3, float K1AW, float K2AW);
   int (*getMatlabGains)(struct GeneralPID *self, float *K1, float *K2, float *K3, float *K1_AW, float *K2_AW);
+  int (*setCutoffFrequency)(struct GeneralPID *self, float cutoff_frequency);
+  float (*getCutoffFrequency)(struct GeneralPID *self);
   int (*setLimits)(struct GeneralPID *self, float max, float min);
   int (*getLimits)(struct GeneralPID *self, float *max, float *min);
   float (*execute)(struct GeneralPID *self, float measurement);
-  float (*execute2)(struct GeneralPID *self, float measurement);
 } GeneralPID;
 
 /// @brief initialize the PID struct
@@ -125,14 +133,19 @@ int GeneralPID_getLimits(GeneralPID *self, float *max, float *min);
 
 /// @brief execute PID control loop
 /// @param self pointer to the instance of the struct
-/// @param measurement
+/// @param measurement output measurement
 /// @return control loop action
 float GeneralPID_execute(GeneralPID *self, float measurement);
 
-/// @brief execute PID control loop
+/// @brief set gains to first order low pass filter implementation
 /// @param self pointer to the instance of the struct
-/// @param measurement
-/// @return control loop action
-float GeneralPID_execute2(GeneralPID *self, float measurement);
+/// @param cutoff_frequency cutoff frequency in hertz 
+/// @return 0 for success and 1 for errors
+int GeneralPID_setCutoffFrequency(GeneralPID *self, float cutoff_frequency);
+
+/// @brief get cutoff frequency
+/// @param self pointer to the instance of the struct
+/// @return cutoff frequency
+float GeneralPID_getCutoffFrequency(GeneralPID *self);
 
 #endif

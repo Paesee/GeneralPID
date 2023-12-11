@@ -5,6 +5,9 @@ int GeneralPID_init(GeneralPID *self, float sampling_time, float kp, float ki, f
   self->setpoint = 0;
   self->sampling_time = sampling_time;
   GeneralPID_setGains(self, kp, ki, kd);
+  self->cutoff_frequency = 0;
+  self->K1_lpf = 0;
+  self->K2_lpf = 0;
   self->max_output = 0;
   self->min_output = 0;
   self->last_error = 0;
@@ -19,10 +22,11 @@ int GeneralPID_init(GeneralPID *self, float sampling_time, float kp, float ki, f
   self->getGains = GeneralPID_getGains;
   self->setMatlabGains = GeneralPID_setMatlabGains;
   self->getMatlabGains = GeneralPID_getMatlabGains;
+  self->setCutoffFrequency = GeneralPID_setCutoffFrequency;
+  self->getCutoffFrequency = GeneralPID_getCutoffFrequency;
   self->setLimits = GeneralPID_setLimits;
   self->getLimits = GeneralPID_getLimits;
   self->execute = GeneralPID_execute;
-  self->execute2 = GeneralPID_execute2;
 }
 
 int GeneralPID_setSetpoint(GeneralPID *self, float setpoint)
@@ -40,6 +44,7 @@ int GeneralPID_setSamplingTime(GeneralPID *self, float sampling_time)
 {
   self->sampling_time = sampling_time;
   GeneralPID_setGains(self, self->KP, self->KI, self->KD);
+  GeneralPID_setCutoffFrequency(self, self->cutoff_frequency);
   return 0;
 }
 
@@ -125,17 +130,25 @@ int GeneralPID_getLimits(GeneralPID *self, float *max, float *min)
 
 float GeneralPID_execute(GeneralPID *self, float measurement)
 {
-  bool is_saturated = 0;
+  float input = measurement;
   float output = 0;
+  float filtered_meas = 0;
+  bool is_saturated = 0;
+  // execute LPF se cutoff frequency for maior que zero
+  if (self->cutoff_frequency > 0)
+  {
+    filtered_meas = self->K1_lpf * (input - self->last_input) - self->K2_lpf * self->last_filtered_meas;
+    input = filtered_meas;
+  }
   // calcula do erro
-  float error = self->setpoint - measurement;
+  float error = self->setpoint - input;
   // verifica se esta saturado
   if (self->last_output >= self->max_output || self->last_output <= self->min_output)
     is_saturated = 1;
   // calcula a equacao de diferenças
   if (is_saturated)
   {
-    output = self->last_output + self->K1 * error + self->K2 * self->second_last_error;
+    output = -self->last_output + self->K1_AW * error + self->K2_AW * self->last_error;
   }
   else
   {
@@ -146,33 +159,31 @@ float GeneralPID_execute(GeneralPID *self, float measurement)
     output = self->max_output;
   if (output < self->min_output)
     output = self->min_output;
-  // armazena os valores anteriores de erro e saida
+  // armazena os valores anteriores da saida
   self->second_last_output = self->last_output;
   self->last_output = output;
+  // armazena os valores anteriores do error
   self->second_last_error = self->last_error;
   self->last_error = error;
+  // armazena os valores anteriores do para o lpf
+  self->last_input = measurement;
+  self->last_filtered_meas = filtered_meas;
   // retorna o valor da acao de controle
   return output;
 }
 
-float GeneralPID_execute2(GeneralPID *self, float measurement)
+int GeneralPID_setCutoffFrequency(GeneralPID *self, float cutoff_frequency)
 {
-  bool is_saturated = 0;
-  float output = 0;
-  // calcula do erro
-  float error = self->setpoint - measurement;
-  // verifica se esta saturado
-  if (self->last_output >= self->max_output || self->last_output <= self->min_output)
-    is_saturated = 1;
-  // calcula a equacao de diferenças
-  output = (!is_saturated) * (self->last_output + self->K1 * error + self->K2 * self->last_error + self->K3 * self->second_last_error) + (is_saturated) * (self->last_output + self->K1 * error + self->K2 * self->second_last_error);
-  //  estabeleces as limitacoes de saida
-  output = (output > self->max_output) ? self->max_output : (output < self->min_output) ? self->min_output : output;
-  // armazena os valores anteriores de erro e saida
-  self->second_last_output = self->last_output;
-  self->last_output = output;
-  self->second_last_error = self->last_error;
-  self->last_error = error;
-  // retorna o valor da acao de controle
-  return output;
+  self->cutoff_frequency = cutoff_frequency;
+  float k1 = cutoff_frequency * self->sampling_time;
+  float k2 = k1 + 2;
+  float k3 = k1 - 2;
+  self->K1_lpf = k1 / k2;
+  self->K2_lpf = k3 / k2;
+  return 0;
+}
+
+float GeneralPID_getCutoffFrequency(GeneralPID *self)
+{
+  return self->cutoff_frequency;
 }
